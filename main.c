@@ -219,14 +219,14 @@ void loadVentesFromFile() {
 }
 
 void displayMenu() {
-    printf("1. Add Produit\n");
-    printf("2. Display Produits\n");
-    printf("3. Add Client\n");
-    printf("4. Display Clients\n");
-    printf("5. Record Vente\n");
-    printf("6. Display Ventes\n");
-    printf("7. Save Data\n");
-    printf("8. Load Data\n");
+    printf("1. Ajouter Produit\n");
+    printf("2. Afficher les Produits\n");
+    printf("3. Ajouter Client\n");
+    printf("4. Afficher les Clients\n");
+    printf("5. Recorde de Vente\n");
+    printf("6. Affichage de Ventes\n");
+    printf("7. Sauvegarder\n");
+    printf("8. chargement\n");
     printf("9. Exit\n");
 }
 
