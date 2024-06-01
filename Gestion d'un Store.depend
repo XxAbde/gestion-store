@@ -1,0 +1,6 @@
+# depslib dependency file v1.0
+1717271496 source:c:\users\pc\desktop\gestion d'un commerce\gestion d'un store\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+
