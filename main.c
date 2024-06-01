@@ -2,282 +2,339 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_nom_LENGTH 50
-#define MAX_ProduitS 100
-#define MAX_CLIENTS 100
-#define MAX_VenteS 100
+#define LONGUEUR_MAX 50
 
-typedef struct {
+
+typedef struct Produit {
     int id;
-    char nom[MAX_nom_LENGTH];
+    char nom[LONGUEUR_MAX];
     float prix;
     int stock;
+    struct Produit* suivant;
 } Produit;
 
-typedef struct {
+typedef struct Client {
     int id;
-    char nom[MAX_nom_LENGTH];
-    char email[MAX_nom_LENGTH];
-    char phone[MAX_nom_LENGTH];
-    float totalSpent;
+    char nom[LONGUEUR_MAX];
+    char email[LONGUEUR_MAX];
+    char telephone[LONGUEUR_MAX];
+    float totalDepense;
+    struct Client* suivant;
 } Client;
 
-typedef struct {
-    int VenteId;
-    int ProduitId;
-    int clientId;
-    int quantity;
-    float totalprix;
+typedef struct Vente {
+    int idVente;
+    int idProduit;
+    int idClient;
+    int quantite;
+    float prixTotal;
+    struct Vente* suivant;
 } Vente;
 
-Produit Produits[MAX_ProduitS];
-int ProduitCount = 0;
+// Liste des Produits
+typedef struct {
+    Produit* tete;
+    int nombre;
+} ListeProduits;
 
-Client clients[MAX_CLIENTS];
-int clientCount = 0;
+// Pile des Clients
+typedef struct {
+    Client* sommet;
+    int nombre;
+} PileClients;
 
-Vente Ventes[MAX_VenteS];
-int VenteCount = 0;
+// File des Ventes
+typedef struct {
+    Vente* avant;
+    Vente* arriere;
+    int nombre;
+} FileVentes;
 
-void addProduit() {
-    if (ProduitCount >= MAX_ProduitS) {
-        printf("Produit limit reached!\n");
-        return;
-    }
+ListeProduits listeProduits = {NULL, 0};
+PileClients pileClients = {NULL, 0};
+FileVentes fileVentes = {NULL, NULL, 0};
 
-    Produit p;
-    p.id = ProduitCount + 1;
-    printf("Enter Produit nom: ");
-    scanf("%s", p.nom);
-    printf("Enter Produit prix: ");
-    scanf("%f", &p.prix);
-    printf("Enter Produit stock: ");
-    scanf("%d", &p.stock);
+// Fonctions de Gestion des Produits
 
-    Produits[ProduitCount] = p;
-    ProduitCount++;
-    printf("Produit added successfully!\n");
+void ajouterProduit() {
+    Produit* nouveauProduit = (Produit*)malloc(sizeof(Produit));
+    nouveauProduit->id = listeProduits.nombre + 1;
+    printf("Entrez le nom du produit: ");
+    scanf("%s", nouveauProduit->nom);
+    printf("Entrez le prix du produit: ");
+    scanf("%f", &nouveauProduit->prix);
+    printf("Entrez le stock du produit: ");
+    scanf("%d", &nouveauProduit->stock);
+    nouveauProduit->suivant = listeProduits.tete;
+    listeProduits.tete = nouveauProduit;
+    listeProduits.nombre++;
+    printf("Produit ajouté avec succès!\n");
 }
 
-void displayProduits() {
-    for (int i = 0; i < ProduitCount; i++) {
-        printf("ID: %d, nom: %s, prix: %.2f, Stock: %d\n", Produits[i].id, Produits[i].nom, Produits[i].prix, Produits[i].stock);
+void afficherProduits() {
+    Produit* actuel = listeProduits.tete;
+    while (actuel != NULL) {
+        printf("ID: %d, Nom: %s, Prix: %.2f, Stock: %d\n", actuel->id, actuel->nom, actuel->prix, actuel->stock);
+        actuel = actuel->suivant;
     }
 }
 
-void saveProduitsToFile() {
+void sauvegarderProduitsDansFichier() {
     FILE *file = fopen("Produits.dat", "wb");
     if (file == NULL) {
-        printf("Unable to open Produits.dat for writing!\n");
+        printf("Impossible d'ouvrir produits.dat pour écriture!\n");
         return;
     }
-    fwrite(&ProduitCount, sizeof(int), 1, file);
-    fwrite(Produits, sizeof(Produit), ProduitCount, file);
+    fwrite(&listeProduits.nombre, sizeof(int), 1, file);
+    Produit* actuel = listeProduits.tete;
+    while (actuel != NULL) {
+        fwrite(actuel, sizeof(Produit) - sizeof(Produit*), 1, file);
+        actuel = actuel->suivant;
+    }
     fclose(file);
-    printf("Produits saved successfully!\n");
+    printf("Produits sauvegardés avec succès!\n");
 }
 
-void loadProduitsFromFile() {
+void chargerProduitsDepuisFichier() {
     FILE *file = fopen("Produits.dat", "rb");
     if (file == NULL) {
-        printf("Unable to open Produits.dat for reading!\n");
+        printf("Impossible d'ouvrir produits.dat pour lecture!\n");
         return;
     }
-    fread(&ProduitCount, sizeof(int), 1, file);
-    fread(Produits, sizeof(Produit), ProduitCount, file);
+    fread(&listeProduits.nombre, sizeof(int), 1, file);
+    Produit* actuel = NULL;
+    for (int i = 0; i < listeProduits.nombre; i++) {
+        Produit* nouveauProduit = (Produit*)malloc(sizeof(Produit));
+        fread(nouveauProduit, sizeof(Produit) - sizeof(Produit*), 1, file);
+        nouveauProduit->suivant = actuel;
+        actuel = nouveauProduit;
+    }
+    listeProduits.tete = actuel;
     fclose(file);
-    printf("Produits loaded successfully!\n");
+    printf("Produits chargés avec succès!\n");
 }
 
-void addClient() {
-    if (clientCount >= MAX_CLIENTS) {
-        printf("Client limit reached!\n");
-        return;
+// Fonctions de Gestion des Clients
+
+void ajouterClient() {
+    Client* nouveauClient = (Client*)malloc(sizeof(Client));
+    nouveauClient->id = pileClients.nombre + 1;
+    printf("Entrez le nom du client: ");
+    scanf("%s", nouveauClient->nom);
+    printf("Entrez l'email du client: ");
+    scanf("%s", nouveauClient->email);
+    printf("Entrez le telephone du client: ");
+    scanf("%s", nouveauClient->telephone);
+    nouveauClient->totalDepense = 0;
+    nouveauClient->suivant = pileClients.sommet;
+    pileClients.sommet = nouveauClient;
+    pileClients.nombre++;
+    printf("Client ajouté avec succès!\n");
+}
+
+void afficherClients() {
+    Client* actuel = pileClients.sommet;
+    while (actuel != NULL) {
+        printf("ID: %d, Nom: %s, Email: %s, telephone: %s, Total Dépensé: %.2f\n", actuel->id, actuel->nom, actuel->email, actuel->telephone, actuel->totalDepense);
+        actuel = actuel->suivant;
     }
-
-    Client c;
-    c.id = clientCount + 1;
-    printf("Enter client nom: ");
-    scanf("%s", c.nom);
-    printf("Enter client email: ");
-    scanf("%s", c.email);
-    printf("Enter client phone: ");
-    scanf("%s", c.phone);
-    c.totalSpent = 0;
-
-    clients[clientCount] = c;
-    clientCount++;
-    printf("Client added successfully!\n");
 }
 
-void displayClients() {
-    for (int i = 0; i < clientCount; i++) {
-        printf("ID: %d, nom: %s, Email: %s, Phone: %s, Total Spent: %.2f\n", clients[i].id, clients[i].nom, clients[i].email, clients[i].phone, clients[i].totalSpent);
-    }
-}
-
-void saveClientsToFile() {
-    FILE *file = fopen("clients.dat", "wb");
+void sauvegarderClientsDansFichier() {
+    FILE *file = fopen("Clients.dat", "wb");
     if (file == NULL) {
-        printf("Unable to open clients.dat for writing!\n");
+        printf("Impossible d'ouvrir clients.dat pour écriture!\n");
         return;
     }
-    fwrite(&clientCount, sizeof(int), 1, file);
-    fwrite(clients, sizeof(Client), clientCount, file);
+    fwrite(&pileClients.nombre, sizeof(int), 1, file);
+    Client* actuel = pileClients.sommet;
+    while (actuel != NULL) {
+        fwrite(actuel, sizeof(Client) - sizeof(Client*), 1, file);
+        actuel = actuel->suivant;
+    }
     fclose(file);
-    printf("Clients saved successfully!\n");
+    printf("Clients sauvegardés avec succès!\n");
 }
 
-void loadClientsFromFile() {
-    FILE *file = fopen("clients.dat", "rb");
+void chargerClientsDepuisFichier() {
+    FILE *file = fopen("Clients.dat", "rb");
     if (file == NULL) {
-        printf("Unable to open clients.dat for reading!\n");
+        printf("Impossible d'ouvrir clients.dat pour lecture!\n");
         return;
     }
-    fread(&clientCount, sizeof(int), 1, file);
-    fread(clients, sizeof(Client), clientCount, file);
+    fread(&pileClients.nombre, sizeof(int), 1, file);
+    Client* actuel = NULL;
+    for (int i = 0; i < pileClients.nombre; i++) {
+        Client* nouveauClient = (Client*)malloc(sizeof(Client));
+        fread(nouveauClient, sizeof(Client) - sizeof(Client*), 1, file);
+        nouveauClient->suivant = actuel;
+        actuel = nouveauClient;
+    }
+    pileClients.sommet = actuel;
     fclose(file);
-    printf("Clients loaded successfully!\n");
+    printf("Clients chargés avec succès!\n");
 }
 
-void recordVente() {
-    if (VenteCount >= MAX_VenteS) {
-        printf("Vente limit reached!\n");
+// Fonctions de Gestion des Ventes
+
+void enregistrerVente() {
+    Vente* nouvelleVente = (Vente*)malloc(sizeof(Vente));
+    nouvelleVente->idVente = fileVentes.nombre + 1;
+    printf("Entrez l'ID du produit: ");
+    scanf("%d", &nouvelleVente->idProduit);
+    printf("Entrez l'ID du client: ");
+    scanf("%d", &nouvelleVente->idClient);
+    printf("Entrez la quantite: ");
+    scanf("%d", &nouvelleVente->quantite);
+
+    Produit* produit = listeProduits.tete;
+    while (produit != NULL && produit->id != nouvelleVente->idProduit) {
+        produit = produit->suivant;
+    }
+
+    Client* client = pileClients.sommet;
+    while (client != NULL && client->id != nouvelleVente->idClient) {
+        client = client->suivant;
+    }
+
+    if (produit == NULL || client == NULL) {
+        printf("ID de produit ou de client invalide!\n");
+        free(nouvelleVente);
         return;
     }
 
-    Vente s;
-    s.VenteId = VenteCount + 1;
-    printf("Enter Produit ID: ");
-    scanf("%d", &s.ProduitId);
-    printf("Enter client ID: ");
-    scanf("%d", &s.clientId);
-    printf("Enter quantity: ");
-    scanf("%d", &s.quantity);
-
-    int ProduitIndex = -1, clientIndex = -1;
-    for (int i = 0; i < ProduitCount; i++) {
-        if (Produits[i].id == s.ProduitId) {
-            ProduitIndex = i;
-            break;
-        }
-    }
-    for (int i = 0; i < clientCount; i++) {
-        if (clients[i].id == s.clientId) {
-            clientIndex = i;
-            break;
-        }
-    }
-
-    if (ProduitIndex == -1 || clientIndex == -1) {
-        printf("Invalid Produit or client ID!\n");
+    if (produit->stock < nouvelleVente->quantite) {
+        printf("Stock insuffisant!\n");
+        free(nouvelleVente);
         return;
     }
 
-    if (Produits[ProduitIndex].stock < s.quantity) {
-        printf("Insufficient stock!\n");
-        return;
+    produit->stock -= nouvelleVente->quantite;
+    nouvelleVente->prixTotal = produit->prix * nouvelleVente->quantite;
+    client->totalDepense += nouvelleVente->prixTotal;
+
+    nouvelleVente->suivant = NULL;
+    if (fileVentes.arriere == NULL) {
+        fileVentes.avant = nouvelleVente;
+    } else {
+        fileVentes.arriere->suivant = nouvelleVente;
     }
-
-    Produits[ProduitIndex].stock -= s.quantity;
-    s.totalprix = Produits[ProduitIndex].prix * s.quantity;
-    clients[clientIndex].totalSpent += s.totalprix;
-
-    Ventes[VenteCount] = s;
-    VenteCount++;
-    printf("Vente recorded successfully!\n");
+    fileVentes.arriere = nouvelleVente;
+    fileVentes.nombre++;
+    printf("Vente enregistrée avec succès!\n");
 }
 
-void displayVentes() {
-    for (int i = 0; i < VenteCount; i++) {
-        printf("Vente ID: %d, Produit ID: %d, Client ID: %d, Quantity: %d, Total prix: %.2f\n", Ventes[i].VenteId, Ventes[i].ProduitId, Ventes[i].clientId, Ventes[i].quantity, Ventes[i].totalprix);
+void afficherVentes() {
+    Vente* actuel = fileVentes.avant;
+    while (actuel != NULL) {
+        printf("ID Vente: %d, ID Produit: %d, ID Client: %d, quantite: %d, Prix Total: %.2f\n", actuel->idVente, actuel->idProduit, actuel->idClient, actuel->quantite, actuel->prixTotal);
+        actuel = actuel->suivant;
     }
 }
 
-void saveVentesToFile() {
+void sauvegarderVentesDansFichier() {
     FILE *file = fopen("Ventes.dat", "wb");
     if (file == NULL) {
-        printf("Unable to open Ventes.dat for writing!\n");
+        printf("Impossible d'ouvrir ventes.dat pour écriture!\n");
         return;
     }
-    fwrite(&VenteCount, sizeof(int), 1, file);
-    fwrite(Ventes, sizeof(Vente), VenteCount, file);
+    fwrite(&fileVentes.nombre, sizeof(int), 1, file);
+    Vente* actuel = fileVentes.avant;
+    while (actuel != NULL) {
+        fwrite(actuel, sizeof(Vente) - sizeof(Vente*), 1, file);
+        actuel = actuel->suivant;
+    }
     fclose(file);
-    printf("Ventes saved successfully!\n");
+    printf("Ventes sauvegardées avec succès!\n");
 }
 
-void loadVentesFromFile() {
+void chargerVentesDepuisFichier() {
     FILE *file = fopen("Ventes.dat", "rb");
     if (file == NULL) {
-        printf("Unable to open Ventes.dat for reading!\n");
-        return;
+        printf("Impossible d'ouvrir ventes.dat pour lecture!\n");
+    return;
     }
-    fread(&VenteCount, sizeof(int), 1, file);
-    fread(Ventes, sizeof(Vente), VenteCount, file);
+    fread(&fileVentes.nombre, sizeof(int), 1, file);
+    Vente* actuel = NULL;
+    Vente* precedent = NULL;
+    for (int i = 0; i < fileVentes.nombre; i++) {
+        Vente* nouvelleVente = (Vente*)malloc(sizeof(Vente));
+        fread(nouvelleVente, sizeof(Vente) - sizeof(Vente*), 1, file);
+        nouvelleVente->suivant = NULL;
+        if (precedent == NULL) {
+            actuel = nouvelleVente;
+        } else {
+            precedent->suivant = nouvelleVente;
+        }
+        precedent = nouvelleVente;
+    }
+    fileVentes.avant = actuel;
+    fileVentes.arriere = precedent;
     fclose(file);
-    printf("Ventes loaded successfully!\n");
+    printf("Ventes chargées avec succès!\n");
 }
+// Menu Principal
 
-void displayMenu() {
-    printf("1. Ajouter Produit\n");
+void afficherMenu() {
+    printf("1. Ajouter un Produit\n");
     printf("2. Afficher les Produits\n");
-    printf("3. Ajouter Client\n");
+    printf("3. Ajouter un Client\n");
     printf("4. Afficher les Clients\n");
-    printf("5. Recorde de Vente\n");
-    printf("6. Affichage de Ventes\n");
-    printf("7. Sauvegarder\n");
-    printf("8. chargement\n");
-    printf("9. Exit\n");
+    printf("5. Enregistrer une Vente\n");
+    printf("6. Afficher les Ventes\n");
+    printf("7. Sauvegarder les Données\n");
+    printf("8. Charger les Données\n");
+    printf("9. Quitter\n");
 }
 
 int main() {
-    int choice;
+    int choix;
 
-    loadProduitsFromFile();
-    loadClientsFromFile();
-    loadVentesFromFile();
+    chargerProduitsDepuisFichier();
+    chargerClientsDepuisFichier();
+    chargerVentesDepuisFichier();
 
     do {
-        displayMenu();
-        printf("Enter your choice: ");
-        scanf("%d", &choice);
+        afficherMenu();
+        printf("Entrez votre choix: ");
+        scanf("%d", &choix);
 
-        switch (choice) {
+        switch (choix) {
             case 1:
-                addProduit();
+                ajouterProduit();
                 break;
             case 2:
-                displayProduits();
+                afficherProduits();
                 break;
             case 3:
-                addClient();
+                ajouterClient();
                 break;
             case 4:
-                displayClients();
+                afficherClients();
                 break;
             case 5:
-                recordVente();
+                enregistrerVente();
                 break;
             case 6:
-                displayVentes();
+                afficherVentes();
                 break;
             case 7:
-                saveProduitsToFile();
-                saveClientsToFile();
-                saveVentesToFile();
+                sauvegarderProduitsDansFichier();
+                sauvegarderClientsDansFichier();
+                sauvegarderVentesDansFichier();
                 break;
             case 8:
-                loadProduitsFromFile();
-                loadClientsFromFile();
-                loadVentesFromFile();
+                chargerProduitsDepuisFichier();
+                chargerClientsDepuisFichier();
+                chargerVentesDepuisFichier();
                 break;
             case 9:
-                printf("Exiting...\n");
+                printf("Sortie...\n");
                 break;
             default:
-                printf("Invalid choice! Please try again.\n");
+                printf("Choix invalide ! Veuillez réessayer.\n");
         }
-    } while (choice != 9);
+    } while (choix != 9);
 
     return 0;
 }
